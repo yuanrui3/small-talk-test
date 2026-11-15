@@ -15,6 +15,6 @@
 - Used respondent-level ordinal fits for the main conditional estimates and a weighted top-category sensitivity to show how poststratification affects the GSS result.
 - Used the original Slovak dictionary to describe the settlement control as childhood location and the lowest responses as low enjoyment or interest.
 - Used six neutral topics in complementary two-day groups to balance topic exposure exactly over the pilot calendar.
-- Set low effort and short output limits for the two-minute chat and small structured reader response.
-- Reserved the documented maximum input cost per live request so the pilot can fail closed under uncertain provider token usage.
 - Kept the owner-only report outside Git so a local deletion can also remove the generated report.
+- Changed the planned model and provider before any live pilot data after the owner required a zero-cost API and removed the Claude requirement. Cloudflare Workers AI Free supports the full transcript history and declines over-quota inference on the Free plan. [Model](https://developers.cloudflare.com/workers-ai/models/gpt-oss-120b/) · [Free quota](https://developers.cloudflare.com/workers-ai/platform/pricing/)
+- Set short output limits for the two-minute chat and structured reader response. Defaulted the local command to an offline practice run so routine UI checks use no API quota.
