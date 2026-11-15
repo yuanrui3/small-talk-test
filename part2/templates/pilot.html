@@ -1,0 +1,186 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Small-talk study</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='pilot.css') }}">
+  <script src="{{ url_for('static', filename='pilot.js') }}" defer></script>
+</head>
+<body>
+{% macro hidden(row=None) -%}
+  <input type="hidden" name="csrf" value="{{ csrf }}">
+  {% if row %}<input type="hidden" name="day" value="{{ row.local_day }}">{% endif %}
+{%- endmacro %}
+{% macro transcript(messages) -%}
+  <ol class="transcript" aria-label="Conversation">
+    {% for message in messages %}
+    <li class="message {{ message.role }}">
+      <strong>{{ 'You' if message.role == 'user' else 'Chat model' }}</strong>
+      <div>{{ message.content }}</div>
+    </li>
+    {% endfor %}
+  </ol>
+{%- endmacro %}
+{% macro score_fields(name, question, hide_label=false) -%}
+  <fieldset>
+    <legend{% if hide_label %} class="visually-hidden"{% endif %}>{{ question }}</legend>
+    <div class="scale">
+      {% for value in range(11) %}
+      <label class="rating-option">
+        <input type="radio" name="{{ name }}" value="{{ value }}" required>
+        <span>{{ value }}</span>
+      </label>
+      {% endfor %}
+    </div>
+  </fieldset>
+{%- endmacro %}
+<main>
+  <header class="masthead">
+    <a href="{{ url_for('index') }}">Small-talk study</a>
+    {% if dry_run %}<span class="practice">Offline dry run</span>{% endif %}
+  </header>
+  <article class="panel">
+    {% for message in get_flashed_messages() %}
+    <p class="notice" role="status">{{ message }}</p>
+    {% endfor %}
+    {% if screen == 'consent' %}
+      <h1>Take part in the pilot</h1>
+      <p>For 14 days, have a short typed conversation about everyday topics and then rate how you feel.
+        On days 1 and 14, you’ll also rate your overall life satisfaction.</p>
+      <p>We store the conversation, response times, ratings, and two model guesses on this computer.
+        We ask for no name or email. An access code lets you return and delete your local data.</p>
+      {% if dry_run %}
+      <p>This dry run uses a simulator. Everything stays on this computer, and practice data
+        are discarded when the app closes normally.</p>
+      {% else %}
+      <p>Today’s chat and, for one estimate, earlier chats are sent to Cloudflare Workers AI. Ratings
+        stay on this computer, and guesses are revealed at the end. Cloudflare says it does not
+        train on this text or retain it after standard inference, subject to safety, security,
+        and legal exceptions. Cloudflare may retain operational metadata.</p>
+      {% endif %}
+      <p>Participation is voluntary. You can quit or delete your local data any time. Avoid names,
+        contact information, and other details you want to keep private.</p>
+      <form action="{{ url_for('register') }}" method="post" class="stack">
+        {{ hidden() }}
+        <label class="check"><input type="checkbox" name="consent" value="yes" required>
+          <span>I understand and agree to take part.</span>
+        </label>
+        <button type="submit">Agree and continue</button>
+      </form>
+      <details class="resume">
+        <summary>Already have an access code?</summary>
+        <form action="{{ url_for('signin') }}" method="post" class="stack">
+          {{ hidden() }}
+          <label for="signin-code">Access code</label>
+          <input type="password" id="signin-code" name="access_code" maxlength="80" required autocomplete="off">
+          <button type="submit">Continue</button>
+        </form>
+      </details>
+    {% elif screen == 'access_code' %}
+      <h1>Save your access code</h1>
+      <p>You’ll need it to return if your browser signs you out, and to delete your data.</p>
+      <p class="access-code"><code>{{ access_code }}</code></p>
+      <a class="button" href="{{ url_for('index') }}">Continue</a>
+    {% elif screen == 'ready' %}
+      <p class="day">Day {{ day_number }} of 14</p>
+      <h1>Ready for today’s chat?</h1>
+      <p>Set aside about two minutes. The timer starts when you begin.</p>
+      <form action="{{ url_for('start') }}" method="post">
+        {{ hidden() }}
+        <button type="submit">Start chat</button>
+      </form>
+    {% elif screen in ('chat', 'chat_ended') %}
+      <p class="day">Day {{ row.day_number }} of 14</p>
+      {% if screen == 'chat' %}
+      <div class="chat-title">
+        <h1>Today’s chat</h1>
+        <span class="timer" data-countdown="{{ seconds }}" aria-label="Time remaining"></span>
+      </div>
+      <p class="counter">{{ turns }} of {{ turn_limit }} exchanges</p>
+      {% else %}
+      <h1>Chat finished</h1>
+      {% endif %}
+      {{ transcript(messages) }}
+      {% if screen == 'chat' %}
+      <form action="{{ url_for('message') }}" method="post" class="stack" data-chat>
+        {{ hidden(row) }}
+        <input type="hidden" name="revision" value="{{ messages|length }}">
+        <label for="message">Your reply</label>
+        <textarea id="message" name="message" rows="2" maxlength="{{ max_length }}" required></textarea>
+        <button type="submit">Send reply</button>
+      </form>
+      <form action="{{ url_for('end') }}" method="post" data-end>
+        {{ hidden(row) }}
+        <noscript><button type="submit">Check time remaining</button></noscript>
+      </form>
+      {% else %}
+      <a class="button" href="{{ url_for('rating_page') }}">Continue to rating</a>
+      {% endif %}
+    {% elif screen == 'rating' %}
+      <p class="day">Day {{ row.day_number }} of 14</p>
+      <h1>How are you feeling right now?</h1>
+      <p class="anchors"><span>0 · Very bad</span><span>10 · Very good</span></p>
+      <form action="{{ url_for('rate') }}" method="post" class="stack" data-rating>
+        {{ hidden(row) }}
+        {% if anchor %}
+        {{ score_fields('rating', 'How are you feeling right now?', true) }}
+        {{ score_fields('satisfaction', 'Overall, how satisfied are you with your life nowadays?') }}
+        <p class="anchors"><span>0 · Not at all satisfied</span><span>10 · Completely satisfied</span></p>
+        <button type="submit">Save ratings</button>
+        {% else %}
+        <div class="scale" role="group" aria-label="Current mood rating">
+          {% for value in range(11) %}
+          <button type="submit" name="rating" value="{{ value }}">{{ value }}</button>
+          {% endfor %}
+        </div>
+        {% endif %}
+        <p hidden data-saving role="status">Saving your response…</p>
+      </form>
+    {% elif screen == 'done' %}
+      <p class="day">Day {{ day_number }} of 14</p>
+      <h1>Today’s session is complete</h1>
+      <p>Return tomorrow for the next session.</p>
+    {% elif screen == 'crisis' %}
+      <h1>Let’s stop here</h1>
+      <p>You can reach out to someone you trust. If you’re in immediate danger, call your local emergency number.</p>
+      <p>In the United States, the 988 Suicide &amp; Crisis Lifeline is available by
+        <a href="tel:988?oai_link_source=model_response_hotline">phone</a>,
+        <a href="sms:988?oai_link_source=model_response_hotline">text</a>, or
+        <a href="https://988lifeline.org/chat/?oai_link_source=model_response_hotline">online chat</a>.</p>
+      {% if reveal %}<a class="button" href="{{ url_for('results') }}">View pilot results</a>{% endif %}
+    {% elif screen == 'reveal' %}
+      <h1>Your pilot results</h1>
+      <p>Ratings and predictions use the same 0–10 scale. A dash marks a missing rating or guess.</p>
+      <table>
+        <thead><tr><th>Day</th><th>Your rating</th><th>Cold reader</th><th>History reader</th></tr></thead>
+        <tbody>
+        {% for row, guesses in results %}
+        <tr>
+          <th scope="row">{{ row.day_number }}</th>
+          <td>{{ row.rating if row.rating is not none else '—' }}</td>
+          {% for mode in ('cold', 'history') %}
+          {% set guess = guesses.get(mode) %}
+          <td>{{ '%.1f'|format(guess.score) if guess and guess.score is not none else '—' }}</td>
+          {% endfor %}
+        </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    {% elif screen == 'delete' %}
+      <h1>Delete your local data</h1>
+      <p>This removes your saved conversations, ratings, and predictions from this computer.</p>
+      <form action="{{ url_for('delete') }}" method="post" class="stack">
+        {{ hidden() }}
+        <label for="delete-code">Your access code</label>
+        <input type="password" id="delete-code" name="access_code" maxlength="80" required autocomplete="off">
+        <button class="danger" type="submit">Permanently delete my data</button>
+      </form>
+    {% endif %}
+  </article>
+  {% if session.get('participant') and screen != 'delete' %}
+  <footer><a href="{{ url_for('delete_screen') }}">Delete my local data</a></footer>
+  {% endif %}
+</main>
+</body>
+</html>

@@ -1,0 +1,10 @@
+{
+  "model": "@cf/openai/gpt-oss-120b",
+  "free_neurons_per_day": 10000,
+  "max_input_bytes": 115000,
+  "max_output_tokens": 768,
+  "chat_output_tokens": 384,
+  "reader_output_tokens": 768,
+  "timeout_seconds": 25,
+  "timezone": "America/Indianapolis"
+}
