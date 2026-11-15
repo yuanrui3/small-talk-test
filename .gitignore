@@ -1,4 +1,6 @@
 /.venv/
 /.uv-cache/
 /data/raw/
+/data/pilot/
+/reports/part2.md
 __pycache__/

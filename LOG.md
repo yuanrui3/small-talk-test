@@ -14,3 +14,7 @@
 - Used training item means only in the short quiz to compare all lengths on the same respondents without borrowing answers the short quiz would skip.
 - Used respondent-level ordinal fits for the main conditional estimates and a weighted top-category sensitivity to show how poststratification affects the GSS result.
 - Used the original Slovak dictionary to describe the settlement control as childhood location and the lowest responses as low enjoyment or interest.
+- Used six neutral topics in complementary two-day groups to balance topic exposure exactly over the pilot calendar.
+- Set low effort and short output limits for the two-minute chat and small structured reader response.
+- Reserved the documented maximum input cost per live request so the pilot can fail closed under uncertain provider token usage.
+- Kept the owner-only report outside Git so a local deletion can also remove the generated report.
