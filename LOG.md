@@ -13,3 +13,4 @@
 - Required at least half of a battery's answers for each observed-item mean to avoid representing a full battery with a handful of known items.
 - Used training item means only in the short quiz to compare all lengths on the same respondents without borrowing answers the short quiz would skip.
 - Used respondent-level ordinal fits for the main conditional estimates and a weighted top-category sensitivity to show how poststratification affects the GSS result.
+- Used the original Slovak dictionary to describe the settlement control as childhood location and the lowest responses as low enjoyment or interest.

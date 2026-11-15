@@ -17,7 +17,6 @@ from .quiz import evaluate_quiz
 
 matplotlib.use("Agg")
 from matplotlib import pyplot as plt
-from matplotlib.ticker import MaxNLocator
 
 ROOT = Path(__file__).resolve().parents[1]
 DOMAIN_NAMES = {
@@ -166,11 +165,10 @@ def draw_quiz(quiz, title, path):
     if quiz["minimum_k"] is not None:
         k = quiz["minimum_k"]
         ax.scatter(k, greedy[k - 1], color="#175470", s=48, zorder=3)
-    if len(counts) <= 20:
+    if counts:
         step = max(1, (len(counts) + 9) // 10)
         ax.set_xticks(sorted({*counts[::step], *counts[-1:]}))
-    else:
-        ax.xaxis.set_major_locator(MaxNLocator(integer=True, nbins=10))
+        ax.set_xlim(0.5, counts[-1] + 0.5)
     ax.set(xlabel="Number of items", ylabel="Held-out adjusted correlation", title=title)
     ax.grid(axis="y", color="#e3e8eb")
     ax.legend(frameon=False)
@@ -183,6 +181,7 @@ def domain_details(survey, domain, result, filename):
     auc = result["auc"]
     fit = result["ordinal"]
     means = result["mean_scores"]
+    low_rating = "disliked items" if survey.name == "1993 General Social Survey" else "low ratings (1–2)"
     train_cells = q["n_train"] * len(q["k"])
     test_cells = q["n_test"] * len(q["k"])
     train_missing = q["train_imputed_cells"] / train_cells if train_cells else np.nan
@@ -208,10 +207,20 @@ def domain_details(survey, domain, result, filename):
         f"| With response-style terms, slope (95% CI) | {effect(result['style_ordinal'])} |",
         "",
         f"Mean score components across complete cases were {means['liking']:.2f} average liking, "
-        f"{means['disliked']:.2f} disliked items, {means['very_liked']:.2f} strongly liked items, "
+        f"{means['disliked']:.2f} {low_rating}, {means['very_liked']:.2f} maximum ratings, "
         f"{means['item_sd']:.2f} within-person SD, and {means['valid_count']:.2f} valid items.",
         "",
         quiz_text(q, survey.labels),
+    ]
+    l1_crossings = [i for i, correlation in enumerate(q["l1_test"]) if correlation >= q["target_r"]]
+    if l1_crossings:
+        first_crossing = l1_crossings[0]
+        l1_items = ", ".join(survey.labels[item] for item in q["l1_order"][:first_crossing + 1])
+        rows.append(
+            f"The L1 order first crossed at k = {first_crossing + 1} "
+            f"({l1_items}, r = {q['l1_test'][first_crossing]:.3f})."
+        )
+    rows += [
         f"Quiz gaps filled using training item means were {format_number(train_missing, '.1%')} in training and "
         f"{format_number(test_missing, '.1%')} in testing.",
         "",
@@ -273,6 +282,9 @@ def write_report(out, gss, gss_results, checks, young, young_results):
     else:
         repl = young_results["combined"]
         repl_fit = repl["ordinal"]
+        hobby_fit = young_results["hobbies"]["ordinal"]
+        music_fit = young_results["music"]["ordinal"]
+        film_fit = young_results["film"]["ordinal"]
         if repl_fit["lo"] > 0 and fit["lo"] > 0:
             interpretation = "Both surveys support the hypothesized positive direction."
         elif repl_fit["lo"] > 0:
@@ -283,8 +295,13 @@ def write_report(out, gss, gss_results, checks, young, young_results):
             interpretation = "The combined Slovak interval includes no association, so replication is inconclusive."
         report += [
             f"**Slovak replication.** In {repl_fit['n']:,} Young People Survey responses, the combined score "
-            f"had an adjusted cumulative odds ratio of {odds(repl_fit)} (95% CI), with permutation "
-            f"p = {repl['p']:.4f}. {interpretation}",
+            f"had an adjusted cumulative odds ratio of {odds(repl_fit)} per SD (95% CI), with permutation "
+            f"p = {repl['p']:.4f}. A one-SD difference in liking corresponded to a "
+            f"{repl_fit['pp_change']:+.1f} percentage-point change in the modeled probability of the highest happiness rating. "
+            f"The descriptive domain odds ratios were {hobby_fit['odds_ratio']:.2f} for hobbies and interests, "
+            f"{music_fit['odds_ratio']:.2f} for music, and {film_fit['odds_ratio']:.2f} for film. {interpretation}",
+            "",
+            f"**Slovak combined quiz.** {quiz_text(repl['quiz'], young.labels)}",
             "",
         ]
 
@@ -294,7 +311,8 @@ def write_report(out, gss, gss_results, checks, young, young_results):
         "The analysis followed the [plan committed before inspecting outcomes](../PLAN.md). Higher "
         "ratings mean more liking and higher ordered outcome values mean greater happiness. The liking "
         "score averages observed ratings. The main model adjusts for the retained background variables "
-        "using ordinal logistic regression. AUC and quiz associations use the preassigned held-out half.",
+        "using ordinal logistic regression. AUC and quiz associations use the preassigned held-out half. "
+        "AUC differences use the unrounded paired estimates.",
         "",
         "The GSS music battery and missing codes come from the NORC documentation and single-year file. "
         "[NORC documentation](https://gss.norc.org/get-documentation.html) · "
@@ -354,7 +372,10 @@ def write_report(out, gss, gss_results, checks, young, young_results):
             "The original questionnaire dictionary defined the item domains. The combined battery uses "
             "all items listed below. [Young People Survey](https://www.kaggle.com/datasets/miroslavsabo/young-people-survey)",
             "",
-            f"The happiness outcome prompt was “{young.audit['outcome_prompt']}”",
+            f"The happiness outcome prompt was “{young.audit['outcome_prompt']}” "
+            "Respondents rated their agreement on a 1–5 scale. Genre ratings ranged from low to high "
+            "enjoyment. Hobby and interest ratings ranged from low to high interest. "
+            "Village/town refers to where the respondent spent most of childhood.",
             "",
             "| Background field | Missing responses |",
             "| --- | ---: |",
