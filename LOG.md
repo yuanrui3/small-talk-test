@@ -18,3 +18,4 @@
 - Kept the owner-only report outside Git so a local deletion can also remove the generated report.
 - Changed the planned model and provider before any live pilot data after the owner required a zero-cost API and removed the Claude requirement. Cloudflare Workers AI Free supports the full transcript history and declines over-quota inference on the Free plan. [Model](https://developers.cloudflare.com/workers-ai/models/gpt-oss-120b/) · [Free quota](https://developers.cloudflare.com/workers-ai/platform/pricing/)
 - Set short output limits for the two-minute chat and structured reader response. Defaulted the local command to an offline practice run so routine UI checks use no API quota.
+- Saved the November 2026 literature review, mathematical analysis and reproducible synthetic calculations in a separate Gate 2 research note on 19 November 2026 so future design decisions can be reviewed while the current pilot and preregistered analysis remain unchanged.
